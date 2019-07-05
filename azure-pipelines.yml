@@ -1,0 +1,70 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscriptionName: '<>'
+  azureSubscriptionId: '<>'
+
+steps:
+- task: UsePythonVersion@0
+  displayName: 'Use Python 3.6'
+  inputs:
+    versionSpec: 3.6
+
+- task: ShellScript@2
+  displayName: 'Install Requirements'
+  inputs:
+    scriptPath: 'environment_setup/install_requirements.sh'
+    disableAutoCwd: true
+    cwd: 'environment_setup'
+
+- task: AzureCLI@1
+  displayName: 'Create or Get Workspace'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python aml_service/00-WorkSpace.py'
+
+- task: AzureCLI@1
+  displayName: 'Start Training on Local'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: |
+     python aml_service/10-TrainOnLocal.py
+
+- task: AzureCLI@1
+  displayName: 'Evaluate Production Model with Newly trained model'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: |
+     python aml_service/15-EvaluateModel.py
+
+- task: AzureCLI@1
+  displayName: 'Register Model'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python aml_service/20-RegisterModel.py'
+
+- task: AzureCLI@1
+  displayName: 'Create Scoring Docker Image'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python aml_service/30-CreateScoringImage.py'
+
+- task: CopyFiles@2
+  displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: Repo'
+  inputs:
+    ArtifactName: 'devops-for-ai'
