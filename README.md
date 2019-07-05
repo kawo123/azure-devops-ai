@@ -4,6 +4,7 @@ This repo contains code and pipeline definition for a machine learning project d
 
 ## Prerequisite
 - Active Azure subscription
+- Azure DevOps project
 - Minimum contributor access to Azure subscription
 
 ## Getting Started:
@@ -11,10 +12,91 @@ This repo contains code and pipeline definition for a machine learning project d
 ### Update Pipeline Config:
 
 #### Build Pipeline
-TODO
+1. In **Azure Pipeline**, create new **Build** pipeline from this Github repo
+2. Choose to create new build pipeline from [azure-pipelines.yml](/azure-pipelines.yml)
 
 #### Release Pipeline
-TODO
+1. In **Azure Pipeline**, create new **Release** pipeline
+2. For release artifact, choose latest artifact from the build pipeline
+3. Add stage `QA - Deploy on ACI` with the following configurations
+
+```
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscriptionName: '<>'
+  azureSubscriptionId: '<>'
+
+steps:
+- task: UsePythonVersion@0
+  displayName: 'Use Python 3.6'
+  inputs:
+    versionSpec: 3.6
+
+- task: Bash@3
+  displayName: 'Install Requirements'
+  inputs:
+    targetType: filePath
+    filePath: './$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai/environment_setup/install_requirements.sh'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai/environment_setup'
+
+- task: AzureCLI@1
+  displayName: '50. Deploy Webservice on ACI'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python ./aml_service/50-deployOnAci.py'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai'
+
+- task: AzureCLI@1
+  displayName: '60. Test ACI Webservice'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python ./aml_service/60-AciWebserviceTest.py'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai'
+```
+
+4. Add stage `Prod - Deploy on AKS` with the following configurations
+
+```
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscriptionName: '<>'
+  azureSubscriptionId: '<>'
+
+steps:
+- task: UsePythonVersion@0
+  displayName: 'Use Python 3.6'
+  inputs:
+    versionSpec: 3.6
+
+- task: Bash@3
+  displayName: 'Install Requirements'
+  inputs:
+    targetType: filePath
+    filePath: './$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai/environment_setup/install_requirements.sh'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai/environment_setup'
+
+- task: AzureCLI@1
+  displayName: '51. Deploy on AKS'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python ./aml_service/51-deployOnAks.py'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai'
+
+- task: AzureCLI@1
+  displayName: '61. Test AKS Webservice'
+  inputs:
+    azureSubscription: '$(azureSubscriptionName) ($(azureSubscriptionId))'
+    scriptLocation: inlineScript
+    inlineScript: 'python ./aml_service/61-AksWebserviceTest.py'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/_devops-for-ai-CI/devops-for-ai'
+```
 
 ### Update Repo config:
 1. Go to the **Repos** on the newly created Azure DevOps project
